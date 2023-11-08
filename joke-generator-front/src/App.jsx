@@ -1,34 +1,75 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import  { useState, useEffect } from 'react';
+import axios from 'axios';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [jokes, setJokes] = useState(["frog","rabbit","lol"]);
+  const [newjoke, setNewjoke] = useState("");
+  const [showjoke, setShowjoke] = useState(false);
+  const [jokenum, setJokenum] = useState();
+
+  useEffect(() => {
+    const test = async () => {
+      try {
+        const res = await fetch(
+          "http://localhost:8080/"
+        );
+        const temjokes = await res.json();
+        setJokes(temjokes);
+        
+        console.log(jokes);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    test();
+  }, []);
+  function handleshow(){
+    setJokenum(Math.floor(Math.random() * jokes.length))
+    setShowjoke(true);
+  }
+
+  const handleclick = async () => {
+    console.log(newjoke);
+    try {
+      await axios.post("https://momsrecipe-api.onrender.com/addrecipe", {
+        addjoke: newjoke,
+      });
+    } catch (err) {
+        console.log("Error", err.message);
+    }
+    const test = async () => {
+      try {
+        const res = await fetch(
+          "http://localhost:8080/"
+        );
+        const temjokes = await res.json();
+        setJokes(temjokes);
+        
+        console.log(jokes);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    test();
+    
+  };
+  
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div>
+      <div className='getjoke'>
+      <img src="image.jpg" alt="logo" />
+      <h1>get joke</h1>
+      <button onClick={()=>handleshow()}>make me laugh</button>
+      <p>{showjoke&&jokes[jokenum]}</p>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+<div className='addjoke'>
+<h1>add a joke</h1>
+<textarea defaultValue={newjoke} onChange={(e)=>setNewjoke(e.target.value)}></textarea><br />
+<button onClick={()=>handleclick()}>submit</button>
+</div>
+    </div>
   )
 }
 
