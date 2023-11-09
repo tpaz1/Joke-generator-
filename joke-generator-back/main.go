@@ -1,87 +1,98 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
 
-	"github.com/gorilla/mux"
-
-	_ "github.com/lib/pq"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "tompaz"
-	password = "password"
-	dbname   = "jokedb"
-        )
-
+// Joke model
 type Joke struct {
-	ID   int    `json:"id"`
-	Text string `json:"text"`
+	gorm.Model
+	Text string `json:"text" gorm:"unique"`
 }
 
-var db *sql.DB
-
-func init() {
-	// Replace with your MySQL connection information.
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-    "password=%s dbname=%s sslmode=disable",
-    host, port, user, password, dbname)
-}
-	db, err := sql.Open("mysql", "username:password@tcp(your_mysql_host:your_mysql_port)/your_database")
-	if err != nil {
-		panic(err)
-	}
-
-	// Check the connection
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Connected to the database")
-}
-
-func AddJoke(w http.ResponseWriter, r *http.Request) {
-	var newJoke Joke
-	if err := json.NewDecoder(r.Body).Decode(&newJoke); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	_, err := db.Exec("INSERT INTO jokes (text) VALUES (?)", newJoke.Text)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-}
-
-func GetRandomJoke(w http.ResponseWriter, r *http.Request) {
-	var joke Joke
-	err := db.QueryRow("SELECT * FROM jokes ORDER BY RAND() LIMIT 1").Scan(&joke.ID, &joke.Text)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Encode and send the joke as JSON response
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(joke); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+var db *gorm.DB
+var err error
 
 func main() {
-	r := mux.NewRouter()
+	// Connect to the PostgreSQL database
+	db, err = gorm.Open("postgres", "host=localhost port=5432 user=goapp dbname=jokedb sslmode=disable password=password")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
-	r.HandleFunc("/addjoke", AddJoke).Methods("POST")
-	r.HandleFunc("/getrandomjoke", GetRandomJoke).Methods("GET")
+	// AutoMigrate will create the table based on the Joke struct
+	db.AutoMigrate(&Joke{})
+	db = db.Set("gorm:table_options", "DISABLE_ROWLEVEL_SECURITY")
 
-	http.Handle("/", r)
-	http.ListenAndServe(":8080", nil)
+	// Initialize the Gin router
+	router := gin.Default()
+	router.Use(cors.Default())
+
+	// Define routes
+	router.POST("/addjoke", addJoke)
+	router.GET("/getrandomjoke", getRandomJoke)
+
+	// Start the server
+	router.Run(":8080")
+}
+
+func addJoke(c *gin.Context) {
+	var jokeText struct {
+		Text string `json:"addjoke"`
+	}
+
+	// Bind the JSON body to the jokeText struct
+	if err := c.BindJSON(&jokeText); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if the joke with the same text already exists
+	existingJoke := Joke{}
+	if err := db.Where("text = ?", jokeText.Text).First(&existingJoke).Error; err == nil {
+		// Joke with the same text already exists
+		c.JSON(http.StatusConflict, gin.H{"error": "Joke with the same text already exists"})
+		log.Println("error: Joke with the same text already exists")
+		return
+	}
+
+	// Create a new joke with the provided text
+	newJoke := Joke{
+		Text: jokeText.Text,
+	}
+
+	// Save the new joke to the database
+	if err := db.Create(&newJoke).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("error: couldnt save to DB")
+		return
+	}
+
+	c.JSON(http.StatusCreated, newJoke)
+}
+
+func getRandomJoke(c *gin.Context) {
+	var joke Joke
+
+	// Get the total number of jokes in the database
+	var count int
+	db.Model(&Joke{}).Count(&count)
+
+	// Generate a random number within the range of the total number of jokes
+	randomID := rand.Intn(count) + 1
+
+	// Retrieve a random joke from the database
+	db.First(&joke, randomID)
+
+	log.Println("Randomly picked joke:", joke.Text, "from DB")
+
+	c.JSON(http.StatusOK, joke)
 }
