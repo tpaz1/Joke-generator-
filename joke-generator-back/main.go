@@ -4,6 +4,8 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -11,22 +13,39 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
-// Joke model
+// Joke model represents the structure of the Joke entity in the database.
 type Joke struct {
 	gorm.Model
 	Text string `json:"text" gorm:"unique"`
 }
 
+const maxRetries = 5
+
 var db *gorm.DB
 var err error
 
 func main() {
-	// Connect to the PostgreSQL database
-	db, err = gorm.Open("postgres", "host=localhost port=5432 user=goapp dbname=jokedb sslmode=disable password=password")
+	// Attempt to connect to the PostgreSQL database with retries
+	retryCount := 0
+	retryDelaySeconds := 1
+	for retryCount < maxRetries {
+		db, err = gorm.Open("postgres", "host=postgres port=5432 user=goapp dbname=jokedb sslmode=disable password=password")
+		if err == nil {
+			break
+		}
+
+		log.Printf("Error connecting to the database (retry %d/%d): %s", retryCount+1, maxRetries, err.Error())
+		time.Sleep(time.Duration(retryDelaySeconds) * time.Second)
+		retryDelaySeconds = 2 * retryDelaySeconds
+		retryCount++
+	}
+
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to connect to the database after %d retries. Exiting.", maxRetries)
 	}
 	defer db.Close()
+
+	log.SetOutput(os.Stdout)
 
 	// AutoMigrate will create the table based on the Joke struct
 	db.AutoMigrate(&Joke{})
@@ -37,13 +56,14 @@ func main() {
 	router.Use(cors.Default())
 
 	// Define routes
-	router.POST("/addjoke", addJoke)
-	router.GET("/getrandomjoke", getRandomJoke)
+	router.POST("/api/addjoke", addJoke)
+	router.GET("/api/getrandomjoke", getRandomJoke)
 
 	// Start the server
-	router.Run(":8080")
+	router.Run("0.0.0.0:8080")
 }
 
+// addJoke handles the HTTP POST request to add a new joke to the database.
 func addJoke(c *gin.Context) {
 	var jokeText struct {
 		Text string `json:"addjoke"`
@@ -68,23 +88,30 @@ func addJoke(c *gin.Context) {
 	newJoke := Joke{
 		Text: jokeText.Text,
 	}
+	log.Println("The joke - ", jokeText.Text, "was added successfully")
 
 	// Save the new joke to the database
 	if err := db.Create(&newJoke).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		log.Println("error: couldnt save to DB")
+		log.Println("error: couldn't save to DB")
 		return
 	}
 
 	c.JSON(http.StatusCreated, newJoke)
 }
 
+// getRandomJoke handles the HTTP GET request to retrieve a random joke from the database.
 func getRandomJoke(c *gin.Context) {
 	var joke Joke
 
 	// Get the total number of jokes in the database
 	var count int
 	db.Model(&Joke{}).Count(&count)
+
+	if count <= 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No jokes found"})
+		return
+	}
 
 	// Generate a random number within the range of the total number of jokes
 	randomID := rand.Intn(count) + 1

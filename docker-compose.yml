@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: jokedb
+      POSTGRES_USER: goapp
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      #- ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres-data:/var/lib/postgresql/data
+  frontend:
+    build:
+      context: ./joke-generator-front
+    image: joke-generator-front:latest
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./joke-generator-back
+    image: joke-generator-back:latest
+    depends_on:
+      - postgres
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_SERVER: postgres
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres-data:

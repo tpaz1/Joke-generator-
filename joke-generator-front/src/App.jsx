@@ -1,73 +1,100 @@
-import './App.css'
-import  { useState, useEffect } from 'react';
+// Import necessary modules and styles
+import './App.css';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
+// Functional component definition
 function App() {
+  // State variables for managing jokes, new joke input, displaying jokes, and handling joke addition status
   const [jokes, setJokes] = useState("");
   const [newjoke, setNewjoke] = useState("");
   const [showjoke, setShowjoke] = useState(false);
   const [jokehandle, setJokehandle] = useState("");
+
+  // Function to asynchronously fetch a random joke from the backend
   async function getjoke() {
     try {
       const res = await fetch(
-        "http://localhost:8080/getrandomjoke"
+        "/api/getrandomjoke"
       );
+
+      // Check if the response is successful
+      if (!res.ok) {
+        throw new Error(`Failed to fetch joke: ${res.status} ${res.statusText}`);
+      }
+
+      // Parse the response JSON and update the state
       const temjokes = await res.json();
       setJokes(temjokes);
-      
-      console.log(jokes);
     } catch (err) {
-      console.log(err);
+      // Handle errors during the fetch operation
+      console.error('Error fetching joke:', err);
     }
   }
 
+  // useEffect hook to fetch a joke on component mount
   useEffect(() => {
-    getjoke()
-  }, []); 
+    getjoke();
+  }, []);
 
-  function handleshow(){
+  // Function to handle displaying jokes
+  function handleshow() {
     setShowjoke(true);
-    getjoke()
+    getjoke();
   }
 
+  // Async function to handle submitting a new joke to the backend
   const handleclick = async () => {
     console.log(newjoke);
+
     try {
-      await axios.post("http://localhost:8080/addjoke", {
+      // Send a POST request to add a new joke
+      await axios.post("/api/addjoke", {
         addjoke: newjoke,
       });
-      setJokehandle("error the joke added successfully")
-    } catch (err) {
-        console.log("Error", err.message);
-        if(err.message=="Request failed with status code 409"){
-          setJokehandle("the joke already exist")
-        }
-        
-    }
-    setTimeout(() => {
-      setJokehandle("")
-    }, 1000);
-    getjoke()
-    
-  };
-  
 
+      // Update the status for successfully adding the joke
+      setJokehandle("Error: The joke was added successfully");
+    } catch (err) {
+      // Handle errors during the POST request
+      console.log("Error", err.message);
+
+      // Check if the error is due to a conflict (joke already exists)
+      if (err.message === "Request failed with status code 409") {
+        setJokehandle("Error: The joke already exists");
+      }
+    }
+
+    // Clear the status after a delay
+    setTimeout(() => {
+      setJokehandle("");
+    }, 1000);
+
+    // Fetch a new joke after adding one
+    getjoke();
+  };
+
+  // JSX structure for the component
   return (
     <div>
       <div className='getjoke'>
-      <img src="image.jpg" alt="logo" />
-      <h1>get joke</h1>
-      <button onClick={()=>handleshow()}>make me laugh</button>
-      <p>{showjoke&&jokes.text}</p>
+        {/* Display logo, title, button to get a new joke, and the current joke */}
+        <img src="image.jpg" alt="logo" />
+        <h1>Get Joke</h1>
+        <button onClick={() => handleshow()}>Make me laugh</button>
+        <p>{showjoke && jokes.text}</p>
       </div>
-<div className='addjoke'>
-<h1>add a joke</h1>
-<textarea defaultValue={newjoke} onChange={(e)=>setNewjoke(e.target.value)}></textarea><br />
-<button onClick={()=>handleclick()}>submit</button>
-<p>{jokehandle}</p>
-</div>
+
+      <div className='addjoke'>
+        {/* Form to add a new joke */}
+        <h1>Add a Joke</h1>
+        <textarea defaultValue={newjoke} onChange={(e) => setNewjoke(e.target.value)}></textarea><br />
+        <button onClick={() => handleclick()}>Submit</button>
+        <p>{jokehandle}</p>
+      </div>
     </div>
-  )
+  );
 }
 
-export default App
+// Export the component as the default export
+export default App;
