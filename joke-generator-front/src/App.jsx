@@ -1,100 +1,111 @@
-// Import necessary modules and styles
-import './App.css';
-import { useState, useEffect } from 'react';
+// App.js
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import logoImage from '/image.png';
+import Raindrop from './Raindrop';
 
-// Functional component definition
+import './App.css';
+
 function App() {
-  // State variables for managing jokes, new joke input, displaying jokes, and handling joke addition status
   const [jokes, setJokes] = useState("");
-  const [newjoke, setNewjoke] = useState("");
-  const [showjoke, setShowjoke] = useState(false);
-  const [jokehandle, setJokehandle] = useState("");
+  const [newJoke, setNewJoke] = useState("");
+  const [showJoke, setShowJoke] = useState(false);
+  const [jokeHandle, setJokeHandle] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
 
-  // Function to asynchronously fetch a random joke from the backend
-  async function getjoke() {
+  async function getJoke() {
     try {
-      const res = await fetch(
-        "/api/getrandomjoke"
-      );
+      const res = await fetch("/api/getrandomjoke");
 
-      // Check if the response is successful
       if (!res.ok) {
         throw new Error(`Failed to fetch joke: ${res.status} ${res.statusText}`);
       }
 
-      // Parse the response JSON and update the state
-      const temjokes = await res.json();
-      setJokes(temjokes);
+      const tempJokes = await res.json();
+      setJokes(tempJokes);
     } catch (err) {
-      // Handle errors during the fetch operation
       console.error('Error fetching joke:', err);
     }
   }
 
-  // useEffect hook to fetch a joke on component mount
   useEffect(() => {
-    getjoke();
+    getJoke();
   }, []);
 
-  // Function to handle displaying jokes
-  function handleshow() {
-    setShowjoke(true);
-    getjoke();
+  function handleShow() {
+    setShowJoke(true);
+    getJoke();
   }
 
-  // Async function to handle submitting a new joke to the backend
-  const handleclick = async () => {
-    console.log(newjoke);
+  const handleClick = async () => {
+    console.log(newJoke);
 
     try {
-      // Send a POST request to add a new joke
       await axios.post("/api/addjoke", {
-        addjoke: newjoke,
+        addJoke: newJoke,
       });
 
-      // Update the status for successfully adding the joke
-      setJokehandle("Error: The joke was added successfully");
+      setJokeHandle("Success: The joke was added successfully");
     } catch (err) {
-      // Handle errors during the POST request
       console.log("Error", err.message);
 
-      // Check if the error is due to a conflict (joke already exists)
       if (err.message === "Request failed with status code 409") {
-        setJokehandle("Error: The joke already exists");
+        setJokeHandle("Error: The joke already exists");
       }
     }
 
-    // Clear the status after a delay
     setTimeout(() => {
-      setJokehandle("");
-    }, 1000);
+      setJokeHandle("");
+    }, 10000);
 
-    // Fetch a new joke after adding one
-    getjoke();
+    getJoke();
   };
 
-  // JSX structure for the component
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
+  const renderRaindrops = () => {
+    const numberOfRaindrops = 50;
+
+    return Array.from({ length: numberOfRaindrops }, (_, index) => (
+      <Raindrop key={index} left={`${Math.random() * 100}vw`} duration={`${Math.random() * 2 + 1}s`} />
+    ));
+  };
+
   return (
-    <div>
+    <div className={`app ${darkMode ? 'dark' : ''}`}>
+      <div className="rain-background">{renderRaindrops()}</div>
       <div className='getjoke'>
-        {/* Display logo, title, button to get a new joke, and the current joke */}
-        <img src="image.jpg" alt="logo" />
+      <img src={logoImage} alt="logo" />
         <h1>Get Joke</h1>
-        <button onClick={() => handleshow()}>Make me laugh</button>
-        <p>{showjoke && jokes.text}</p>
+        <button className={`button ${darkMode ? 'dark' : ''}`} onClick={() => handleShow()}>
+          Make me laugh
+        </button>
+        <p className={`joke-text ${showJoke ? 'show' : ''}`}>{showJoke && <span className="show">{`"${jokes.text}"`}</span>}</p>
       </div>
 
       <div className='addjoke'>
-        {/* Form to add a new joke */}
         <h1>Add a Joke</h1>
-        <textarea defaultValue={newjoke} onChange={(e) => setNewjoke(e.target.value)}></textarea><br />
-        <button onClick={() => handleclick()}>Submit</button>
-        <p>{jokehandle}</p>
+        <textarea
+          value={newJoke}
+          onChange={(e) => setNewJoke(e.target.value)}
+          className={`textarea ${darkMode ? 'dark' : ''}`}
+        ></textarea>
+        <button className={`button ${darkMode ? 'dark' : ''}`} onClick={() => handleClick()}>
+          Submit
+        </button>
+        <p className={`joke-handle ${jokeHandle ? 'show' : ''}`}>{jokeHandle}</p>
+      </div>
+
+      <div className='dark-mode-toggle'>
+        <label className={`switch ${darkMode ? 'on' : ''}`} onClick={toggleDarkMode}>
+          <span className={`slider ${darkMode ? 'on' : ''}`}></span>
+        </label>
+        <p className={`dark-mode-text ${darkMode ? 'on' : ''}`}>Dark Mode</p>
       </div>
     </div>
   );
 }
 
-// Export the component as the default export
 export default App;
