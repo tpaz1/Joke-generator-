@@ -1,19 +1,19 @@
 resources:
-  - name: {{ .Values.gitrepo.name }}
+  - name: joke_repo
     type: GitRepo
     configuration:
-      gitProvider: {{.Values.gitrepo.gitProvider}}                       # <-- replace with your integration
-      path: {{ .Values.gitrepo.path }}   # <-- replace with your repository name
+      gitProvider: git                     # <-- replace with your integration
+      path: tpaz1/Joke-generator-   # <-- replace with your repository name
       branches:
-        include: {{ .Values.gitrepo.branch }}
+        include: main
 
-  - name: {{ .Values.image.name }}
+  - name: joke_image
     type: Image
     configuration:
-      registry: {{ .Values.image.registry }}                                # <-- replace with your artifactory integration
-      sourceRepository: {{ .Values.image.sourceRepository }}             # <-- required if registry is Artifactory
-      imageName: {{ .Values.image.imageName }}  # < -- replace with your image path and name
-      imageTag: {{ .Values.image.imageTag }}
+      registry: registry                               # <-- replace with your artifactory integration
+      sourceRepository: docker             # <-- required if registry is Artifactory
+      imageName: tompaz.jfrog.io/docker/joke  # < -- replace with your image path and name
+      imageTag: latest
       autoPull: true
       
   - name: joke_build_info
