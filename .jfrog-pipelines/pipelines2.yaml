@@ -37,9 +37,7 @@ resources:
       
 
 pipelines:
-  - name: Docker_Quickstart
-    configuration:
-      jfrog-CliVersion: 2  
+  - name: Docker_Quickstart 
     steps:
       - name: docker_build
         type: DockerBuild
