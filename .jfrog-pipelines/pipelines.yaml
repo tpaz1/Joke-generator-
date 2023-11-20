@@ -1,0 +1,92 @@
+resources:
+  - name: {{ .Values.gitrepo.joke_repo }}
+    type: GitRepo
+    configuration:
+      gitProvider: {{.Values.gitrepo.gitProvider}}                       # <-- replace with your integration
+      path: {{ .Values.gitrepo.path }}   # <-- replace with your repository name
+      branches:
+        include: {{ .Values.gitrepo.branch }}
+
+  - name: {{ .Values.image.name }}
+    type: Images
+    configuration:
+      registry: {{ .Values.image.registry }}                                # <-- replace with your artifactory integration
+      sourceRepository: {{ .Values.image.sourceRepository }}             # <-- required if registry is Artifactory
+      imageName: {{ .Values.image.imageName }}  # < -- replace with your image path and name
+      imageTag: {{ .Values.image.imageTag }}
+      autoPull: true
+      
+  - name: joke_build_info
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: registry
+      buildName: joke_back
+      buildNumber: 1    
+
+  - name: joke_promoted_build_info
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: registry
+      buildName: joke_back
+      buildNumber: 1
+      
+  - name: cron_trigger_docker
+    type: CronTrigger
+    configuration:
+      interval: '0 2 * * *'       
+      
+
+pipelines:
+  - name: Docker_Quickstart
+    configuration:
+      jfrog-CliVersion: 2  
+    steps:
+      - name: docker_build
+        type: DockerBuild
+        configuration:
+          affinityGroup: joke_group
+          dockerFileLocation: ./joke-generator-back/
+          dockerFileName: Dockerfile
+          dockerImageName: tompaz.jfrog.io/docker/joke  # replace with your image path and name
+          dockerImageTag: ${run_number}
+          inputResources:
+            - name: joke_repo
+            - name: cron_trigger_docker
+          integrations:
+            - name: registry                            # <-- replace with your artifactory integration
+        execution:
+          onStart:
+              # - msg="Run description updated from step $step_id"
+              # - update_run_description "$msg"  
+              - update_run_description "Add custom text for every run. Example - Build and push Docker image to Artifactory."
+
+      - name: docker_push
+        type: DockerPush
+        configuration:
+          affinityGroup: joke_group
+          targetRepository: docker
+          integrations:
+            - name: registry                            # <-- replace with your artifactory integration
+          inputSteps:
+            - name: docker_build
+          outputResources:
+            - name: joke_image           
+
+      - name: publish_joke_build
+        type: PublishBuildInfo
+        configuration:
+          inputSteps:
+            - name: docker_push
+          outputResources:
+            - name: joke_build_info          
+
+      - name: promote_joke_build
+        type: PromoteBuild
+        configuration:
+          targetRepository: docker
+          integrations:
+            - name: registry
+          inputResources:
+            - name: joke_build_info
+          outputResources:
+            - name: joke_promoted_build_info
