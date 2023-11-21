@@ -6,6 +6,9 @@ resources:
       path: tpaz1/Joke-generator-   # <-- replace with your repository name
       branches:
         include: main
+      buildOn:
+        commit: false
+        pullRequestCreate: true
 
   - name: joke_image
     type: Image
@@ -30,10 +33,10 @@ resources:
       buildName: joke_back
       buildNumber: 1
       
-  - name: cron_trigger_docker
-    type: CronTrigger
-    configuration:
-      interval: '0 2 * * *'       
+  # - name: cron_trigger_docker
+  #   type: CronTrigger
+  #   configuration:
+  #     interval: '0 2 * * *'       
       
 
 pipelines:
