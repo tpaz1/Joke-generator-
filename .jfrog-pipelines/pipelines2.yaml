@@ -52,7 +52,7 @@ pipelines:
           dockerImageTag: ${run_number}
           inputResources:
             - name: joke_repo
-            - name: cron_trigger_docker
+            # - name: cron_trigger_docker
           integrations:
             - name: registry                            # <-- replace with your artifactory integration
         execution:
